@@ -1,20 +1,16 @@
-// Importação da versão legacy que é mais estável para ambientes Node.js
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { PDFDocument } from "pdf-lib";
 
-// Regex corrigida: removido o '\?' que estava procurando um ponto de interrogação literal antes do CPF
 const CPF_REGEX = /\b(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/;
 
 export async function splitPdfByCpf(buffer: Buffer): Promise<Uint8Array> {
   const data = new Uint8Array(buffer);
 
-  // O SEGREDO: disableWorker e standardFontDataUrl
   // Isso impede que o PDF.js procure arquivos .mjs externos
   const loadingTask = pdfjs.getDocument({
     data,
     useSystemFonts: true,
     disableFontFace: true,
-    disableWorker: true, // Força o processamento na thread principal
     verbosity: 0,
   });
 
