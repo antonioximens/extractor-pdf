@@ -27,7 +27,9 @@ export async function POST(req: NextRequest) {
      * Usamos o construtor do Blob passando o Uint8Array diretamente,
      * o que é aceito pela maioria das versões modernas do Next.js/Node.
      */
-    const blob = new Blob([zipUint8Array], { type: "application/zip" });
+    const blob = new Blob([zipUint8Array.buffer as ArrayBuffer], {
+      type: "application/zip",
+    });
 
     // Retorna a resposta binária para o frontend
     return new NextResponse(blob, {
