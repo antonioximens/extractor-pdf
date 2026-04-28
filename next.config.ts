@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
       canvas: "./src/lib/empty-module.js",
     },
   },
+  // Corrige warnings de config inválida para o deploy
+  reactStrictMode: true,
 };
 
 export default nextConfig;
