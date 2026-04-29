@@ -1,34 +1,29 @@
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import { extractText, getDocumentProxy } from "unpdf";
 import { PDFDocument } from "pdf-lib";
 
+// Captura cpf com ou sem formatação.
 const CPF_REGEX = /\b(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/;
 
+// Criando a função que processa o PDF, separa por CPF e gera um ZIP
 export async function splitPdfByCpf(buffer: Buffer): Promise<Uint8Array> {
-  const data = new Uint8Array(buffer);
-
-  // Isso impede que o PDF.js procure arquivos .mjs externos
-  const loadingTask = pdfjs.getDocument({
-    data,
-    useSystemFonts: true,
-    disableFontFace: true,
-    verbosity: 0,
-  });
-
-  const pdfReader = await loadingTask.promise;
-  const numPages = pdfReader.numPages;
-
+  // Carrega o PDF usando a biblioteca unpdf para extração do texto.
+  const pdf = await getDocumentProxy(new Uint8Array(buffer));
+  const numPages = pdf.numPages;
+  // Copia o PDF original para criar novos PDFs separados por CPF.
   const originalPdf = await PDFDocument.load(buffer);
+
+  // Armazena as paginas agrupadas por CPF.
   const groups: { cpf: string; pages: number[] }[] = [];
+  let currentCpf = "Vazio";
 
-  let currentCpf = "desconhecido";
+  // Extrai o texto de cada página para identificar o CPF e agrupar as páginas.
+  const { text } = await extractText(pdf, { mergePages: false });
 
+  // Itera sobre cada página, extrai o texto e procura pelo CPF usando regex.
   for (let i = 1; i <= numPages; i++) {
-    const page = await pdfReader.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(" ");
-
+    const pageText = Array.isArray(text) ? text[i - 1] : text;
     const match = pageText.match(CPF_REGEX);
-
+    // Caso encontre o cpf diferente do atual cria um novo grupo.
     if (match) {
       currentCpf = match[1].replace(/\D/g, "");
       groups.push({ cpf: currentCpf, pages: [i - 1] });
@@ -41,18 +36,17 @@ export async function splitPdfByCpf(buffer: Buffer): Promise<Uint8Array> {
     }
   }
 
+  // Cria um arquivo zip
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
 
+  // Cria um novo pdf para cada grupo.
   for (const group of groups) {
     const newPdf = await PDFDocument.create();
     const copiedPages = await newPdf.copyPages(originalPdf, group.pages);
     copiedPages.forEach((page) => newPdf.addPage(page));
-
     const pdfBytes = await newPdf.save();
-    // Se houver múltiplos grupos com o mesmo CPF, o zip.file sobrescreve.
-    // Adicionado um índice para evitar perda de dados se o CPF repetir em blocos separados.
-    zip.file(`${group.cpf}_${Date.now()}.pdf`, pdfBytes);
+    zip.file(`${group.cpf}.pdf`, pdfBytes);
   }
 
   return await zip.generateAsync({ type: "uint8array" });
