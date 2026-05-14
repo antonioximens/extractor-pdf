@@ -8,6 +8,7 @@ import { ProcessButton } from "@/components/processButton/ProcessButton";
 import { StatusAlert } from "@/components/statusAlert/StatusAlert";
 import { HistoryList } from "@/components/historyList/HistoryList";
 import { useHistory } from "@/hooks/useHistory/useHistory";
+import { Button } from "../ui/button";
 
 export function PdfSplitter() {
   const [file, setFile] = useState<File | null>(null);
@@ -15,7 +16,7 @@ export function PdfSplitter() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null!);
-  const { history, addEntry } = useHistory();
+  const { history, addEntry, clearHistory } = useHistory();
 
   const handleProcess = async () => {
     if (!file) return;
@@ -99,6 +100,15 @@ export function PdfSplitter() {
             onClick={handleProcess}
           />
           <HistoryList history={history} />
+          <Button
+            variant="outline"
+            className="bg-brand-button-delete text-white hover:bg-brand-button-delete/90"
+            size="sm"
+            onClick={clearHistory}
+            disabled={history.length === 0}
+          >
+            Limpar Histórico
+          </Button>
         </CardContent>
       </Card>
     </div>
