@@ -6,10 +6,12 @@
   --color-brand-primary: var(--brand-primary);
   --color-brand-light: var(--brand-light);
   --color-brand-bg: var(--brand-bg);
+  --color-brand-button-delete: var(--brand-button-delete);
 }
 
 :root {
   --brand-primary: oklch(0.38 0.18 258);
   --brand-light: oklch(0.55 0.16 240);
   --brand-bg: oklch(0.75 0.08 240 / 20%);
+  --brand-button-delete: oklch(57.097% 0.22116 23.839 / 0.948);
 }
