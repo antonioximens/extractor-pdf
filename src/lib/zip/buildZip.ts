@@ -13,7 +13,7 @@ export async function buildZip(
   // Cria um novo pdf para cada grupo
   for (const group of groups) {
     const pdfBytes = await buildPdfGroup(originalPdf, group);
-    zip.file(`${group.cpf}.pdf`, pdfBytes);
+    zip.file(`${group.cpf}_${group.matricula}.pdf`, pdfBytes);
   }
 
   return zip.generateAsync({ type: "uint8array" });
