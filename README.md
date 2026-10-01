@@ -107,7 +107,7 @@ Cada perfil reconhece um tipo de documento pela primeira página e pode sobrescr
 ### Extração padrão
 
 - **CPF:** `\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b` — com ou sem formatação, **validado pelos dígitos verificadores** (sequências como telefones são ignoradas)
-- **Matrícula:** número de 3 a 10 dígitos após `Matrícula`, `Matr.`, `Mat.`, `Registro`, `Chapa` ou `Cód. Funcionário`
+- **Matrícula:** número de 1 a 10 dígitos (zeros à esquerda são mantidos) após `Matrícula`, `Matr.`, `Mat.`, `Registro`, `Chapa` ou `Cód. Funcionário`
 - **Nome:** texto após `Nome`, `Nome do Funcionário`, `Funcionário`, `Colaborador`, `Empregado` ou `Servidor`, até o fim da linha ou o próximo rótulo. Exige nome e sobrenome e ignora `Nome da Empresa`, `Nome da Mãe` etc.
 
 Páginas sem CPF continuam no grupo do último CPF encontrado; o mesmo CPF em trechos diferentes do PDF é unido em um único arquivo.

@@ -28,7 +28,7 @@ export const DEFAULT_FIELDS: FieldPatterns = {
     "gi",
   ),
   matricula:
-    /(?:Matr[íi]cula|Matr?\.|Registro|Chapa|C[óo]d(?:igo)?\.?\s*(?:do\s+)?(?:Func(?:ion[áa]rio)?|Colab(?:orador)?|Empregado))\s*:?\s*(\d{3,10})\b/gi,
+    /(?:Matr[íi]cula|Matr?\.|Registro|Chapa|C[óo]d(?:igo)?\.?\s*(?:do\s+)?(?:Func(?:ion[áa]rio)?|Colab(?:orador)?|Empregado))\s*:?\s*(\d{1,10})\b/gi,
 };
 
 // A ordem importa: o primeiro perfil cujo "detect" casar com a primeira página vence.
