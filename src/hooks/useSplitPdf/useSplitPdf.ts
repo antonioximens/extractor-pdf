@@ -27,7 +27,9 @@ async function requestSplit(files: File[]): Promise<Blob> {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.details || "Falha ao processar os arquivos.");
+    throw new Error(
+      errorData?.details || errorData?.error || "Falha ao processar os arquivos.",
+    );
   }
 
   return response.blob();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUp } from "lucide-react";
 import { FileUploadInput } from "@/components/fileUploadInput/FileUploadInput";
@@ -8,7 +8,8 @@ import { ProcessButton } from "@/components/processButton/ProcessButton";
 import { StatusAlert } from "@/components/statusAlert/StatusAlert";
 import { HistoryList } from "@/components/historyList/HistoryList";
 import { useHistory } from "@/hooks/useHistory/useHistory";
-import { useSplitPdf } from "@/hooks/useSplitPdf/useSplitPdf";
+import { SplitStatus, useSplitPdf } from "@/hooks/useSplitPdf/useSplitPdf";
+import { validateUpload } from "@/lib/upload/uploadLimits";
 
 // Cabeçalho estático criado uma única vez: o React reaproveita o mesmo elemento.
 const HEADER = (
@@ -28,6 +29,17 @@ export function PdfSplitter() {
   const { status, split, reset } = useSplitPdf();
   const { history, addEntries, clearHistory } = useHistory();
   const loading = status.state === "loading";
+
+  // Erro de limite derivado da seleção: bloqueia o envio antes do upload.
+  const uploadError = useMemo(
+    () => (files.length ? validateUpload(files) : null),
+    [files],
+  );
+  const alertStatus = useMemo<SplitStatus>(
+    () =>
+      uploadError ? { state: "error", message: uploadError.message } : status,
+    [uploadError, status],
+  );
 
   const handleFilesChange = useCallback(
     (selected: File[]) => {
@@ -59,14 +71,15 @@ export function PdfSplitter() {
         {HEADER}
         <CardContent className="space-y-6 px-10 pb-12">
           <FileUploadInput
+            files={files}
             fileInputRef={fileInputRef}
             disabled={loading}
             onChange={handleFilesChange}
           />
-          <StatusAlert status={status} />
+          <StatusAlert status={alertStatus} />
           <ProcessButton
             loading={loading}
-            disabled={files.length === 0 || loading}
+            disabled={files.length === 0 || !!uploadError || loading}
             onClick={handleProcess}
           />
           <HistoryList history={history} onClear={clearHistory} />

@@ -1,17 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { InputDocument, splitDocuments } from "@/lib/split/splitDocuments";
+import {
+  formatBytes,
+  MAX_TOTAL_BYTES,
+  validateUpload,
+} from "@/lib/upload/uploadLimits";
+
+// Folga para os cabeçalhos do multipart além do tamanho dos arquivos.
+const MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
 
 export async function POST(req: NextRequest) {
+  // Recusa envios grandes demais antes de ler o corpo da requisição.
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_TOTAL_BYTES + MULTIPART_OVERHEAD_BYTES) {
+    return NextResponse.json(
+      {
+        error: `O envio excede o limite de ${formatBytes(MAX_TOTAL_BYTES)}.`,
+      },
+      { status: 413 },
+    );
+  }
+
   try {
     const formData = await req.formData();
     const files = formData
       .getAll("file")
       .filter((entry): entry is File => entry instanceof File);
 
-    if (files.length === 0) {
+    const uploadError = validateUpload(files);
+    if (uploadError) {
       return NextResponse.json(
-        { error: "Nenhum arquivo PDF encontrado no envio." },
-        { status: 400 },
+        { error: uploadError.message },
+        { status: uploadError.status },
       );
     }
 

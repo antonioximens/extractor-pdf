@@ -1,13 +1,21 @@
 import { memo, RefObject } from "react";
 import { Input } from "@/components/ui/input";
+import {
+  formatBytes,
+  LIMITS_DESCRIPTION,
+  MAX_TOTAL_BYTES,
+  totalSize,
+} from "@/lib/upload/uploadLimits";
 
 interface Props {
+  files: File[];
   fileInputRef: RefObject<HTMLInputElement>;
   disabled: boolean;
   onChange: (files: File[]) => void;
 }
 
 export const FileUploadInput = memo(function FileUploadInput({
+  files,
   fileInputRef,
   disabled,
   onChange,
@@ -31,6 +39,11 @@ export const FileUploadInput = memo(function FileUploadInput({
         className="cursor-pointer file:font-semibold border-slate-200 h-14 text-lg
                    focus-visible:ring-brand-light bg-slate-50"
       />
+      <p className="text-sm text-slate-500 ml-1">
+        {files.length
+          ? `${files.length} arquivo(s) · ${formatBytes(totalSize(files))} de ${formatBytes(MAX_TOTAL_BYTES)}`
+          : LIMITS_DESCRIPTION}
+      </p>
     </div>
   );
 });
