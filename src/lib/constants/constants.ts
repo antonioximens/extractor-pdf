@@ -1,10 +1,12 @@
-// Captura cpf com ou sem formatação.
-export const CPF_REGEX = /\b(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/;
-// Valor para CFf não encontrado.
-export const DEFAULT_CPF = "CPF NAO ENCONTRADO";
+// Captura cpf com ou sem formatação (todas as ocorrências da página).
+export const CPF_REGEX = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g;
 
-// Captura o a matricula do colaborador.
-export const MATRICULA_REGEX = /[Mm]atr[íi]cula[:\s]+(\d{3,8})/;
+// Valores usados no nome da pasta quando o campo não é encontrado.
+export const DEFAULT_MATRICULA = "MATRICULA_NAO_ENCONTRADA";
+export const DEFAULT_NOME = "NOME_NAO_ENCONTRADO";
 
-// Valor para matricula não encontrada.
-export const DEFAULT_MATRICULA = "MATRICULA NAO ENCONTRADA";
+// Pasta que recebe as páginas sem CPF identificado.
+export const UNIDENTIFIED_FOLDER = "NAO_IDENTIFICADOS";
+
+// Nome do relatório gerado dentro do zip.
+export const REPORT_FILE_NAME = "relatorio.csv";

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Download } from "lucide-react";
 
@@ -7,7 +8,11 @@ interface Props {
   onClick: () => void;
 }
 
-export function ProcessButton({ loading, disabled, onClick }: Props) {
+export const ProcessButton = memo(function ProcessButton({
+  loading,
+  disabled,
+  onClick,
+}: Props) {
   return (
     <Button
       className="w-full text-white font-bold h-12 text-xl rounded-xl
@@ -30,4 +35,4 @@ export function ProcessButton({ loading, disabled, onClick }: Props) {
       )}
     </Button>
   );
-}
+});
