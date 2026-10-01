@@ -10,7 +10,18 @@ Aplicação web que recebe um ou mais PDFs contendo documentos de vários colabo
 2. Para cada PDF, a aplicação detecta o tipo de documento (holerite, espelho de ponto...)
 3. Cada página é lida e o CPF, a matrícula e o nome são extraídos
 4. As páginas são agrupadas por CPF — o mesmo colaborador em vários PDFs cai na mesma pasta
-5. Um ZIP é gerado com as pastas e um `relatorio.csv`, e o download é iniciado automaticamente
+5. A tela de **resumo** mostra os totais, as pendências e a lista de colaboradores (com busca)
+6. O usuário confere e clica em **Baixar ZIP** — ou em **Nova separação** para recomeçar
+
+### Limites de envio
+
+Até **20 arquivos** e **50 MB no total** (`src/lib/upload/uploadLimits.ts`). A tela bloqueia o envio antes do upload e a API valida de novo (`413` para tamanho/quantidade, `400` para arquivo que não é PDF).
+
+### Tratamento de erros
+
+- Erros de processamento, rede e timeout (2 minutos) aparecem como alerta na própria tela, com mensagem amigável
+- `app/error.tsx` e `app/global-error.tsx` exibem uma tela de fallback com **Tentar novamente** se a interface quebrar
+- Histórico corrompido no `localStorage` é descartado em vez de derrubar a tela
 
 ### Estrutura do ZIP gerado
 
@@ -40,17 +51,22 @@ documentos_separados.zip
 ```
 src/
 ├── app/
-│   └── api/split/route.ts            # Recebe os PDFs e retorna o ZIP
+│   ├── api/split/route.ts            # Recebe os PDFs e retorna resumo + ZIP
+│   ├── error.tsx                     # Fallback de erro da página
+│   └── global-error.tsx              # Fallback de erro do layout raiz
 │
 ├── components/
 │   ├── pdfSplitter/PdfSplitter.tsx   # Tela principal
+│   ├── summaryPanel/                 # Resumo do processamento (totais, busca, lista)
+│   ├── errorFallback/                # Tela de erro compartilhada
+│   ├── appCard/                      # Moldura padrão das telas
 │   ├── fileUploadInput/              # Seleção de arquivos (múltiplos)
 │   ├── processButton/                # Botão de iniciar processamento
 │   ├── statusAlert/                  # Alertas de erro e sucesso
 │   └── historyList/                  # Histórico de arquivos processados
 │
 ├── hooks/
-│   ├── useSplitPdf/useSplitPdf.ts    # Envio para a API e download do ZIP
+│   ├── useSplitPdf/useSplitPdf.ts    # Envio para a API (timeout e mensagens de erro)
 │   └── useHistory/useHistory.ts      # Histórico no localStorage
 │
 └── lib/
@@ -63,9 +79,13 @@ src/
     │   └── buildPdfGroup.ts          # Cria um PDF com as páginas de um grupo
     ├── split/
     │   ├── splitDocuments.ts         # Orquestra todo o processamento
-    │   └── employeeFolders.ts        # Consolida colaboradores e nomeia as pastas
+    │   ├── employeeFolders.ts        # Consolida colaboradores e nomeia as pastas
+    │   ├── summary.ts                # Monta o resumo exibido na tela
+    │   └── splitResponse.ts          # Formato da resposta: resumo (JSON) + ZIP
+    ├── upload/uploadLimits.ts        # Limites de envio (tela e API)
     ├── report/buildReportCsv.ts      # Gera o relatorio.csv
-    ├── text/                         # Utilitários de texto (nomes de pasta, faixas de página)
+    ├── text/                         # Utilitários de texto (pastas, faixas de página, busca)
+    ├── download/downloadBlob.ts      # Download do ZIP no navegador
     └── zip/buildZip.ts               # Monta o ZIP
 ```
 

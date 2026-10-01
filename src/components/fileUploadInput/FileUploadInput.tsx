@@ -1,4 +1,4 @@
-import { memo, RefObject } from "react";
+import { memo } from "react";
 import { Input } from "@/components/ui/input";
 import {
   formatBytes,
@@ -9,14 +9,12 @@ import {
 
 interface Props {
   files: File[];
-  fileInputRef: RefObject<HTMLInputElement>;
   disabled: boolean;
   onChange: (files: File[]) => void;
 }
 
 export const FileUploadInput = memo(function FileUploadInput({
   files,
-  fileInputRef,
   disabled,
   onChange,
 }: Props) {
@@ -33,7 +31,6 @@ export const FileUploadInput = memo(function FileUploadInput({
         type="file"
         accept="application/pdf"
         multiple
-        ref={fileInputRef}
         onChange={(e) => onChange(Array.from(e.target.files ?? []))}
         disabled={disabled}
         className="cursor-pointer file:font-semibold border-slate-200 h-14 text-lg

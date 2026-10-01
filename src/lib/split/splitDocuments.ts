@@ -3,6 +3,7 @@ import { REPORT_FILE_NAME, UNIDENTIFIED_FOLDER } from "../constants/constants";
 import { buildPdfGroup } from "../pdf/buildPdfGroup";
 import { extractPageTexts } from "../pdf/extractPageTexts";
 import {
+  Employee,
   groupPagesByEmployee,
   PageGroup,
 } from "../pdf/groupPagesByEmployee";
@@ -16,6 +17,7 @@ import {
   describeIssues,
   employeeFolderName,
 } from "./employeeFolders";
+import { buildSummary, SplitSummary } from "./summary";
 
 export interface InputDocument {
   fileName: string;
@@ -42,13 +44,14 @@ async function analyzeDocument(doc: InputDocument): Promise<AnalyzedDocument> {
   };
 }
 
-// Gera os pdfs separados (um pdf original carregado por vez) e, ao final, o relatório.
+// Gera os pdfs separados (um pdf original carregado por vez) e, ao final, o
+// relatório. As linhas do relatório também são acumuladas em "report".
 async function* generateEntries(
   documents: AnalyzedDocument[],
+  employees: Map<string, Employee>,
+  report: ReportRow[],
 ): AsyncGenerator<ZipEntry> {
-  const employees = consolidateEmployees(documents.map((d) => d.groups));
   const uniquePath = createUniquePath();
-  const report: ReportRow[] = [];
 
   for (const doc of documents) {
     const originalPdf = await PDFDocument.load(doc.bytes);
@@ -84,14 +87,23 @@ async function* generateEntries(
   yield { path: REPORT_FILE_NAME, data: buildReportCsv(report) };
 }
 
+export interface SplitOutput {
+  zip: ArrayBuffer;
+  summary: SplitSummary;
+}
+
 // Separa os pdfs por colaborador: uma pasta por cpf, um pdf por tipo de documento.
 export async function splitDocuments(
   inputs: InputDocument[],
-): Promise<ArrayBuffer> {
+): Promise<SplitOutput> {
   // Sequencial de propósito: limita o pico de memória com vários pdfs grandes.
   const documents: AnalyzedDocument[] = [];
   for (const input of inputs) {
     documents.push(await analyzeDocument(input));
   }
-  return buildZip(generateEntries(documents));
+
+  const employees = consolidateEmployees(documents.map((d) => d.groups));
+  const report: ReportRow[] = [];
+  const zip = await buildZip(generateEntries(documents, employees, report));
+  return { zip, summary: buildSummary(report, employees, inputs.length) };
 }

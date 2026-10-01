@@ -1,56 +1,69 @@
 import { useCallback, useState } from "react";
+import {
+  decodeSplitResponse,
+  SplitResult,
+} from "@/lib/split/splitResponse";
 
 export type SplitStatus =
-  | { state: "idle" | "loading" | "success" }
+  | { state: "idle" | "loading" }
+  | { state: "success"; result: SplitResult }
   | { state: "error"; message: string };
 
 const IDLE: SplitStatus = { state: "idle" };
+const LOADING: SplitStatus = { state: "loading" };
+const TIMEOUT_MS = 2 * 60 * 1000;
 
-// Dispara o download de um blob sem manter referências na página.
-function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  URL.revokeObjectURL(url);
+// Converte falhas de rede/timeout em mensagens que o usuário entende.
+function toErrorMessage(err: unknown): string {
+  if (err instanceof DOMException && err.name === "AbortError") {
+    return "O processamento demorou demais. Tente enviar menos arquivos por vez.";
+  }
+  if (err instanceof TypeError) {
+    return "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.";
+  }
+  return err instanceof Error ? err.message : "Ocorreu um erro inesperado.";
 }
 
-async function requestSplit(files: File[]): Promise<Blob> {
+async function requestSplit(files: File[]): Promise<SplitResult> {
   const formData = new FormData();
   files.forEach((file) => formData.append("file", file));
 
-  const response = await fetch("/api/split", {
-    method: "POST",
-    body: formData,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(
-      errorData?.details || errorData?.error || "Falha ao processar os arquivos.",
-    );
+  try {
+    const response = await fetch("/api/split", {
+      method: "POST",
+      body: formData,
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(
+        errorData?.details ||
+          errorData?.error ||
+          "Falha ao processar os arquivos.",
+      );
+    }
+
+    return await decodeSplitResponse(response);
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return response.blob();
 }
 
-// Envia os pdfs para separação e baixa o zip resultante.
+// Envia os pdfs para separação e guarda o resumo e o zip resultantes.
 export function useSplitPdf() {
   const [status, setStatus] = useState<SplitStatus>(IDLE);
 
   const split = useCallback(async (files: File[]): Promise<boolean> => {
-    setStatus({ state: "loading" });
+    setStatus(LOADING);
     try {
-      downloadBlob(await requestSplit(files), `processado_${Date.now()}.zip`);
-      setStatus({ state: "success" });
+      setStatus({ state: "success", result: await requestSplit(files) });
       return true;
     } catch (err) {
-      setStatus({
-        state: "error",
-        message:
-          err instanceof Error ? err.message : "Ocorreu um erro inesperado.",
-      });
+      setStatus({ state: "error", message: toErrorMessage(err) });
       return false;
     }
   }, []);

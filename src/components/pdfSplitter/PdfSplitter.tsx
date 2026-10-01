@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCallback, useMemo, useState } from "react";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUp } from "lucide-react";
+import { AppCard } from "@/components/appCard/AppCard";
 import { FileUploadInput } from "@/components/fileUploadInput/FileUploadInput";
 import { ProcessButton } from "@/components/processButton/ProcessButton";
 import { StatusAlert } from "@/components/statusAlert/StatusAlert";
+import { SummaryPanel } from "@/components/summaryPanel/SummaryPanel";
 import { HistoryList } from "@/components/historyList/HistoryList";
 import { useHistory } from "@/hooks/useHistory/useHistory";
-import { SplitStatus, useSplitPdf } from "@/hooks/useSplitPdf/useSplitPdf";
+import { useSplitPdf } from "@/hooks/useSplitPdf/useSplitPdf";
 import { validateUpload } from "@/lib/upload/uploadLimits";
 
 // Cabeçalho estático criado uma única vez: o React reaproveita o mesmo elemento.
@@ -25,7 +27,6 @@ const HEADER = (
 
 export function PdfSplitter() {
   const [files, setFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null!);
   const { status, split, reset } = useSplitPdf();
   const { history, addEntries, clearHistory } = useHistory();
   const loading = status.state === "loading";
@@ -35,11 +36,8 @@ export function PdfSplitter() {
     () => (files.length ? validateUpload(files) : null),
     [files],
   );
-  const alertStatus = useMemo<SplitStatus>(
-    () =>
-      uploadError ? { state: "error", message: uploadError.message } : status,
-    [uploadError, status],
-  );
+  const errorMessage =
+    uploadError?.message ?? (status.state === "error" ? status.message : null);
 
   const handleFilesChange = useCallback(
     (selected: File[]) => {
@@ -59,32 +57,33 @@ export function PdfSplitter() {
         status: ok ? "success" : "error",
       })),
     );
-    if (ok) {
-      setFiles([]);
-      fileInputRef.current.value = "";
-    }
+    // O formulário sai de tela no sucesso; ao voltar, o input já começa vazio.
+    if (ok) setFiles([]);
   }, [files, split, addEntries]);
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 font-sans">
-      <Card className="w-full max-w-2xl shadow-2xl border-t-[6px] border-t-brand-primary bg-white transition-all">
-        {HEADER}
-        <CardContent className="space-y-6 px-10 pb-12">
-          <FileUploadInput
-            files={files}
-            fileInputRef={fileInputRef}
-            disabled={loading}
-            onChange={handleFilesChange}
-          />
-          <StatusAlert status={alertStatus} />
-          <ProcessButton
-            loading={loading}
-            disabled={files.length === 0 || !!uploadError || loading}
-            onClick={handleProcess}
-          />
-          <HistoryList history={history} onClear={clearHistory} />
-        </CardContent>
-      </Card>
-    </div>
+    <AppCard>
+      {HEADER}
+      <CardContent className="space-y-6 px-6 sm:px-10 pb-12">
+        {status.state === "success" ? (
+          <SummaryPanel result={status.result} onReset={reset} />
+        ) : (
+          <>
+            <FileUploadInput
+              files={files}
+              disabled={loading}
+              onChange={handleFilesChange}
+            />
+            <StatusAlert message={errorMessage} />
+            <ProcessButton
+              loading={loading}
+              disabled={files.length === 0 || !!uploadError || loading}
+              onClick={handleProcess}
+            />
+          </>
+        )}
+        <HistoryList history={history} onClear={clearHistory} />
+      </CardContent>
+    </AppCard>
   );
 }

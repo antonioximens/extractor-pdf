@@ -15,12 +15,20 @@ const EMPTY: HistoryEntry[] = [];
 let cache: HistoryEntry[] | undefined;
 const listeners = new Set<() => void>();
 
-function getSnapshot(): HistoryEntry[] {
-  if (!cache) {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    cache = stored ? JSON.parse(stored) : EMPTY;
+// Histórico ilegível (corrompido ou de outra versão) é descartado em vez de
+// derrubar a tela.
+function readStorage(): HistoryEntry[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+    return Array.isArray(parsed) && parsed.length ? parsed : EMPTY;
+  } catch {
+    return EMPTY;
   }
-  return cache!;
+}
+
+function getSnapshot(): HistoryEntry[] {
+  cache ??= readStorage();
+  return cache;
 }
 
 const getServerSnapshot = () => EMPTY;
@@ -32,8 +40,12 @@ function subscribe(listener: () => void) {
 
 function write(next: HistoryEntry[]) {
   cache = next;
-  if (next.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  else localStorage.removeItem(STORAGE_KEY);
+  try {
+    if (next.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    else localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage cheio ou bloqueado: o histórico segue só em memória.
+  }
   listeners.forEach((listener) => listener());
 }
 

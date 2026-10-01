@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { InputDocument, splitDocuments } from "@/lib/split/splitDocuments";
+import { encodeSplitResponse } from "@/lib/split/splitResponse";
 import {
   formatBytes,
   MAX_TOTAL_BYTES,
@@ -42,18 +43,9 @@ export async function POST(req: NextRequest) {
       })),
     );
 
-    // Separa os PDFs por colaborador e gera o ZIP.
-    const zip = await splitDocuments(inputs);
-
-    return new NextResponse(zip, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition":
-          'attachment; filename="documentos_separados.zip"',
-        "Content-Length": zip.byteLength.toString(),
-      },
-    });
+    // Separa os PDFs por colaborador e devolve o resumo junto com o ZIP.
+    const { zip, summary } = await splitDocuments(inputs);
+    return encodeSplitResponse(summary, zip);
   } catch (error) {
     console.error("Erro na rota de split:", error);
 
