@@ -1,54 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
-import { splitPdfByCpf } from "@/lib/pdf-service";
+import { InputDocument, splitDocuments } from "@/lib/split/splitDocuments";
+import { encodeSplitResponse } from "@/lib/split/splitResponse";
+import {
+  formatBytes,
+  MAX_TOTAL_BYTES,
+  validateUpload,
+} from "@/lib/upload/uploadLimits";
+
+// Folga para os cabeçalhos do multipart além do tamanho dos arquivos.
+const MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
 
 export async function POST(req: NextRequest) {
+  // Recusa envios grandes demais antes de ler o corpo da requisição.
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_TOTAL_BYTES + MULTIPART_OVERHEAD_BYTES) {
+    return NextResponse.json(
+      {
+        error: `O envio excede o limite de ${formatBytes(MAX_TOTAL_BYTES)}.`,
+      },
+      { status: 413 },
+    );
+  }
+
   try {
     const formData = await req.formData();
-    const file = formData.get("file") as File;
+    const files = formData
+      .getAll("file")
+      .filter((entry): entry is File => entry instanceof File);
 
-    if (!file) {
+    const uploadError = validateUpload(files);
+    if (uploadError) {
       return NextResponse.json(
-        { error: "Arquivo PDF não encontrado no envio." },
-        { status: 400 },
+        { error: uploadError.message },
+        { status: uploadError.status },
       );
     }
 
-    // Converte o arquivo recebido para Buffer para processamento no Node.js
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const inputs: InputDocument[] = await Promise.all(
+      files.map(async (file) => ({
+        fileName: file.name,
+        bytes: new Uint8Array(await file.arrayBuffer()),
+      })),
+    );
 
-    // Chama o serviço que separa os PDFs e gera o ZIP
-    const zipUint8Array = await splitPdfByCpf(buffer);
-
-    /**
-     * SOLUÇÃO DO ERRO DE TIPAGEM:
-     * O erro "SharedArrayBuffer" ocorre porque o TS é rigoroso com a origem do buffer.
-     * Criamos um novo Blob garantindo que o conteúdo seja uma parte válida (BlobPart).
-     * Usamos o construtor do Blob passando o Uint8Array diretamente,
-     * o que é aceito pela maioria das versões modernas do Next.js/Node.
-     */
-    const blob = new Blob([zipUint8Array.buffer as ArrayBuffer], {
-      type: "application/zip",
-    });
-
-    // Retorna a resposta binária para o frontend
-    return new NextResponse(blob, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition":
-          'attachment; filename="documentos_separados.zip"',
-        // Adicionamos o Content-Length para o frontend saber o progresso se necessário
-        "Content-Length": blob.size.toString(),
-      },
-    });
-  } catch (error: any) {
+    // Separa os PDFs por colaborador e devolve o resumo junto com o ZIP.
+    const { zip, summary } = await splitDocuments(inputs);
+    return encodeSplitResponse(summary, zip);
+  } catch (error) {
     console.error("Erro na rota de split:", error);
 
     return NextResponse.json(
       {
         error: "Falha ao processar o PDF.",
-        details: error.message,
+        details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 },
     );

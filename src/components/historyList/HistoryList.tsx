@@ -1,16 +1,17 @@
+import { memo } from "react";
 import { FileText, Clock } from "lucide-react";
-
-export interface HistoryEntry {
-  fileName: string;
-  processedAt: string; // ISO string
-  status: "success" | "error";
-}
+import { Button } from "@/components/ui/button";
+import { HistoryEntry } from "@/hooks/useHistory/useHistory";
 
 interface Props {
   history: HistoryEntry[];
+  onClear: () => void;
 }
 
-export function HistoryList({ history }: Props) {
+export const HistoryList = memo(function HistoryList({
+  history,
+  onClear,
+}: Props) {
   if (history.length === 0) return null;
 
   return (
@@ -21,7 +22,7 @@ export function HistoryList({ history }: Props) {
       <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
         {history.map((entry, i) => (
           <li
-            key={i}
+            key={`${entry.processedAt}-${entry.fileName}-${i}`}
             className="flex items-center justify-between px-4 py-3 bg-white hover:bg-slate-50 transition-colors gap-3"
           >
             <div className="flex items-center gap-3">
@@ -38,6 +39,14 @@ export function HistoryList({ history }: Props) {
           </li>
         ))}
       </ul>
+      <Button
+        variant="outline"
+        className="bg-brand-button-delete text-white hover:bg-brand-button-delete/90"
+        size="sm"
+        onClick={onClear}
+      >
+        Limpar Histórico
+      </Button>
     </div>
   );
-}
+});

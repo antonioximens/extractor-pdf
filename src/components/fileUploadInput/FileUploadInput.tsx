@@ -1,31 +1,46 @@
+import { memo } from "react";
 import { Input } from "@/components/ui/input";
-import { RefObject } from "react";
+import {
+  formatBytes,
+  LIMITS_DESCRIPTION,
+  MAX_TOTAL_BYTES,
+  totalSize,
+} from "@/lib/upload/uploadLimits";
 
 interface Props {
-  fileInputRef: RefObject<HTMLInputElement>;
+  files: File[];
   disabled: boolean;
-  onChange: (file: File | null) => void;
+  onChange: (files: File[]) => void;
 }
 
-export function FileUploadInput({ fileInputRef, disabled, onChange }: Props) {
+export const FileUploadInput = memo(function FileUploadInput({
+  files,
+  disabled,
+  onChange,
+}: Props) {
   return (
     <div className="grid w-full items-center gap-3">
       <label
         htmlFor="pdf-upload"
         className="text-lg font-semibold text-slate-700 ml-1"
       >
-        Selecione o arquivo PDF
+        Selecione os arquivos PDF
       </label>
       <Input
         id="pdf-upload"
         type="file"
         accept="application/pdf"
-        ref={fileInputRef}
-        onChange={(e) => onChange(e.target.files?.[0] || null)}
+        multiple
+        onChange={(e) => onChange(Array.from(e.target.files ?? []))}
         disabled={disabled}
         className="cursor-pointer file:font-semibold border-slate-200 h-14 text-lg
                    focus-visible:ring-brand-light bg-slate-50"
       />
+      <p className="text-sm text-slate-500 ml-1">
+        {files.length
+          ? `${files.length} arquivo(s) · ${formatBytes(totalSize(files))} de ${formatBytes(MAX_TOTAL_BYTES)}`
+          : LIMITS_DESCRIPTION}
+      </p>
     </div>
   );
-}
+});

@@ -1,31 +1,47 @@
-# 📄 Separador de PDF por CPF e Matrícula
+# 📄 Separador de PDF por Colaborador
 
-Aplicação web que recebe um PDF contendo documentos de múltiplos colaboradores ( ex: espelho de ponto), identifica cada um pelo CPF e matrícula e gera um arquivo ZIP com os PDFs separados individualmente.
+Aplicação web que recebe um ou mais PDFs contendo documentos de vários colaboradores (ex: holerite, espelho de ponto, demonstrativos), identifica cada colaborador pelo **CPF**, **matrícula** e **nome** e gera um ZIP com **uma pasta por colaborador** e um PDF por tipo de documento.
 
 ---
 
 ## 🚀 Como funciona
 
-1. O usuário faz upload de um PDF com múltiplos documentos
-2. A aplicação lê cada página e identifica o CPF e a matrícula
-3. As páginas são agrupadas por colaborador
-4. Um ZIP é gerado com um PDF por colaborador
-5. O download é iniciado automaticamente
+1. O usuário faz upload de um ou mais PDFs
+2. Para cada PDF, a aplicação detecta o tipo de documento (holerite, espelho de ponto...)
+3. Cada página é lida e o CPF, a matrícula e o nome são extraídos
+4. As páginas são agrupadas por CPF — o mesmo colaborador em vários PDFs cai na mesma pasta
+5. A tela de **resumo** mostra os totais, as pendências e a lista de colaboradores (com busca)
+6. O usuário confere e clica em **Baixar ZIP** — ou em **Nova separação** para recomeçar
 
-### Padrão de nomenclatura dos arquivos gerados
+### Limites de envio
+
+Até **20 arquivos** e **50 MB no total** (`src/lib/upload/uploadLimits.ts`). A tela bloqueia o envio antes do upload e a API valida de novo (`413` para tamanho/quantidade, `400` para arquivo que não é PDF).
+
+### Tratamento de erros
+
+- Erros de processamento, rede e timeout (2 minutos) aparecem como alerta na própria tela, com mensagem amigável
+- `app/error.tsx` e `app/global-error.tsx` exibem uma tela de fallback com **Tentar novamente** se a interface quebrar
+- Histórico corrompido no `localStorage` é descartado em vez de derrubar a tela
+
+### Estrutura do ZIP gerado
 
 ```
-{cpf}_{matricula}.pdf
-
-Exemplo: 12345678900_0001.pdf
+documentos_separados.zip
+├── 12345678909_0001_JOAO_DA_SILVA/
+│   ├── espelho-ponto.pdf
+│   └── holerite.pdf
+├── 98765432100_0002_MARIA_SOUZA/
+│   └── holerite.pdf
+├── NAO_IDENTIFICADOS/
+│   └── holerite_paginas_12-13.pdf
+└── relatorio.csv
 ```
 
-Quando CPF ou matrícula não forem encontrados, o valor padrão é usado:
-
-```
-CPF_NAO_ENCONTRADO_0001.pdf
-12345678900_MATRICULA_NAO_ENCONTRADA.pdf
-```
+- **Pasta:** `{cpf}_{matricula}_{NOME}` — nome em maiúsculas, sem acentos e com `_` no lugar de espaços. Nome e matrícula são **opcionais**: se o documento não os tiver, a pasta usa só o que foi encontrado (`{cpf}_{NOME}`, `{cpf}_{matricula}` ou só `{cpf}`)
+- **Arquivo:** o tipo do documento detectado; se nenhum perfil reconhecer o PDF, usa o nome do arquivo enviado
+- **Dois documentos do mesmo tipo** para o mesmo colaborador recebem sufixo (`holerite_2.pdf`)
+- **Páginas antes do primeiro CPF** vão para `NAO_IDENTIFICADOS`
+- **`relatorio.csv`** (separado por `;`, abre direto no Excel) lista, para cada PDF gerado, as páginas de origem, os dados extraídos e observações (página sem CPF, nome/matrícula divergente entre documentos). Nome ou matrícula ausente não é pendência
 
 ---
 
@@ -34,96 +50,67 @@ CPF_NAO_ENCONTRADO_0001.pdf
 ```
 src/
 ├── app/
-│   └── api/
-│       └── split/
-│           └── route.ts              # Endpoint que recebe o PDF e retorna o ZIP
+│   ├── api/split/route.ts            # Recebe os PDFs e retorna resumo + ZIP
+│   ├── error.tsx                     # Fallback de erro da página
+│   └── global-error.tsx              # Fallback de erro do layout raiz
 │
 ├── components/
-│   ├── fileUploadInput/
-│   │   └── FileUploadInput.tsx       # Input de seleção de arquivo
-│   ├── processButton/
-│   │   └── ProcessButton.tsx         # Botão de iniciar processamento
-│   ├── statusAlert/
-│   │   └── StatusAlert.tsx           # Alertas de erro e sucesso
-│   └── historyList/
-│       └── HistoryList.tsx           # Lista do histórico de arquivos processados
+│   ├── pdfSplitter/PdfSplitter.tsx   # Tela principal
+│   ├── summaryPanel/                 # Resumo do processamento (totais, busca, lista)
+│   ├── errorFallback/                # Tela de erro compartilhada
+│   ├── appCard/                      # Moldura padrão das telas
+│   ├── fileUploadInput/              # Seleção de arquivos (múltiplos)
+│   ├── processButton/                # Botão de iniciar processamento
+│   ├── statusAlert/                  # Alertas de erro e sucesso
+│   └── historyList/                  # Histórico de arquivos processados
 │
 ├── hooks/
-│   └── useHistory/
-│       └── useHistory.ts             # Gerencia o histórico no localStorage
+│   ├── useSplitPdf/useSplitPdf.ts    # Envio para a API (timeout e mensagens de erro)
+│   └── useHistory/useHistory.ts      # Histórico no localStorage
 │
 └── lib/
-    ├── constants/
-    │   └── constants.ts              # Regex e valores padrão
+    ├── constants/constants.ts        # Regex de CPF e valores padrão
+    ├── cpf/findValidCpf.ts           # Busca e valida CPF (dígitos verificadores)
+    ├── profiles/profiles.ts          # Perfis de documento e extração de nome/matrícula
     ├── pdf/
-    │   ├── extractPageTexts.ts       # Extrai texto de cada página do PDF
-    │   ├── groupPagesByCpf.ts        # Agrupa páginas por CPF e matrícula
-    │   └── buildPdfGroup.ts          # Cria um PDF por grupo
-    └── zip/
-        └── buildZip.ts               # Empacota os PDFs em um ZIP
+    │   ├── extractPageTexts.ts       # Extrai o texto de cada página
+    │   ├── groupPagesByEmployee.ts   # Agrupa as páginas por CPF
+    │   └── buildPdfGroup.ts          # Cria um PDF com as páginas de um grupo
+    ├── split/
+    │   ├── splitDocuments.ts         # Orquestra todo o processamento
+    │   ├── employeeFolders.ts        # Consolida colaboradores e nomeia as pastas
+    │   ├── summary.ts                # Monta o resumo exibido na tela
+    │   └── splitResponse.ts          # Formato da resposta: resumo (JSON) + ZIP
+    ├── upload/uploadLimits.ts        # Limites de envio (tela e API)
+    ├── report/buildReportCsv.ts      # Gera o relatorio.csv
+    ├── text/                         # Utilitários de texto (pastas, faixas de página, busca)
+    ├── download/downloadBlob.ts      # Download do ZIP no navegador
+    └── zip/buildZip.ts               # Monta o ZIP
 ```
 
 ---
 
-## 🧩 Responsabilidade de cada arquivo
+## 🧩 Perfis de documento — `profiles.ts`
 
-### Constantes — `constants.ts`
+Cada perfil reconhece um tipo de documento pela primeira página e pode sobrescrever os padrões de extração de nome e matrícula:
 
-Centraliza as regex e valores padrão. Qualquer alteração no padrão de CPF, matrícula ou mensagens de fallback é feita aqui e reflete em todo o sistema.
+| Perfil                | Detectado por                                                 |
+| --------------------- | ------------------------------------------------------------- |
+| `ferias`              | aviso/recibo de férias                                         |
+| `informe-rendimentos` | informe/comprovante de rendimentos                             |
+| `espelho-ponto`       | espelho/cartão/folha de ponto                                  |
+| `holerite`            | holerite, contracheque, recibo/demonstrativo/folha de pagamento |
+| `demonstrativo`       | demonstrativo (genérico)                                       |
 
-```typescript
-CPF_REGEX; // Captura CPF com ou sem formatação
-MATRICULA_REGEX; // Captura matrícula precedida do prefixo "Matrícula:"
-DEFAULT_CPF; // Valor usado quando CPF não é encontrado
-DEFAULT_MATRICULA; // Valor usado quando matrícula não é encontrada
-```
+**Para suportar um novo documento**, adicione um perfil em `PROFILES`. Se o layout usar rótulos diferentes, informe `fields` com as regex próprias (com a flag `g`).
 
-### Extração — `extractPageTexts.ts`
+### Extração padrão
 
-Carrega o PDF e extrai o texto de todas as páginas de uma vez, retornando um array onde cada posição corresponde a uma página.
+- **CPF:** `\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b` — com ou sem formatação, **validado pelos dígitos verificadores** (sequências como telefones são ignoradas)
+- **Matrícula:** número de 1 a 10 dígitos (zeros à esquerda são mantidos) após `Matrícula`, `Matr.`, `Mat.`, `Registro`, `Chapa` ou `Cód. Funcionário`
+- **Nome:** texto após `Nome`, `Nome do Funcionário`, `Funcionário`, `Colaborador`, `Empregado` ou `Servidor`, até o fim da linha ou o próximo rótulo. Exige nome e sobrenome e ignora `Nome da Empresa`, `Nome da Mãe` etc.
 
-### Agrupamento — `groupPagesByCpf.ts`
-
-Itera sobre o array de textos, aplica as regex e agrupa as páginas por colaborador. Páginas sem CPF são anexadas ao grupo anterior.
-
-### Construção do PDF — `buildPdfGroup.ts`
-
-Recebe o PDF original e os índices das páginas de um grupo, copia essas páginas e gera um novo PDF.
-
-### Empacotamento — `buildZip.ts`
-
-Itera sobre todos os grupos, gera o PDF de cada um e adiciona ao ZIP com o nome `cpf_matricula.pdf`.
-
-### Histórico — `useHistory.ts`
-
-Hook que persiste o histórico de arquivos processados no `localStorage` do navegador, mantendo os 20 registros mais recentes.
-
----
-
-## 🔍 Regex utilizadas
-
-### CPF
-
-```regex
-/\b(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/
-```
-
-Aceita CPF com ou sem formatação:
-
-- `123.456.789-00` ✅
-- `12345678900` ✅
-
-### Matrícula
-
-```regex
-/[Mm]atr[íi]cula[:\s]+(\d{4,8})/
-```
-
-Exige o prefixo `Matrícula:` para evitar falsos positivos com outros números do documento:
-
-- `Matrícula: 0001` ✅
-- `matricula: 12345` ✅
-- `1234` ✅ (número solto — ignorado)
+Páginas sem CPF continuam no grupo do último CPF encontrado; o mesmo CPF em trechos diferentes do PDF é unido em um único arquivo.
 
 ---
 
@@ -154,10 +141,12 @@ npm run dev
 npm run build
 ```
 
+> Requer um Node.js com suporte a `Promise.try` (usado pelo pdf.js do `unpdf`). No Node 22.14 a extração falha com `Promise.try is not a function`.
+
 ---
 
 ## 📌 Observações
 
-- O PDF de entrada deve conter o CPF e a matrícula na **primeira página de cada documento**, caso não tenha. Será salvo "CPF não encontrado" ou "Matricula não encontrada"
+- PDFs escaneados (imagem, sem texto) não são suportados — exigiriam OCR
 - O histórico é salvo no navegador via `localStorage` — não requer banco de dados
 - O histórico é individual por navegador e não é compartilhado entre usuários
