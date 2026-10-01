@@ -1,4 +1,3 @@
-import { DEFAULT_MATRICULA, DEFAULT_NOME } from "../constants/constants";
 import { Employee, PageGroup } from "../pdf/groupPagesByEmployee";
 import { toPathSegment } from "../text/toPathSegment";
 
@@ -25,9 +24,12 @@ export function consolidateEmployees(
   return employees;
 }
 
+// Nome e matrícula são opcionais: a pasta usa só o que foi encontrado
+// ("cpf_matricula_NOME", "cpf_NOME", "cpf_matricula" ou só "cpf").
 export function employeeFolderName({ cpf, matricula, nome }: Employee): string {
-  const nomeSegment = nome ? toPathSegment(nome).toUpperCase() : DEFAULT_NOME;
-  return `${cpf}_${matricula ?? DEFAULT_MATRICULA}_${nomeSegment}`;
+  return [cpf, matricula, nome && toPathSegment(nome).toUpperCase()]
+    .filter(Boolean)
+    .join("_");
 }
 
 // Compara nomes ignorando acentos, caixa e pontuação.
@@ -35,17 +37,16 @@ function sameName(a: string, b = ""): boolean {
   return toPathSegment(a).toUpperCase() === toPathSegment(b).toUpperCase();
 }
 
-// Descreve o que está faltando ou diverge entre o documento e a pasta final.
+// Aponta divergências entre o documento e a pasta final. Campo ausente no
+// documento não é pendência: nem todo documento traz nome ou matrícula.
 export function describeIssues(found: Employee, folder: Employee): string[] {
   const issues: string[] = [];
 
-  if (!found.nome) issues.push("Nome não encontrado no documento");
-  else if (!sameName(found.nome, folder.nome)) {
+  if (found.nome && !sameName(found.nome, folder.nome)) {
     issues.push(`Nome divergente: "${found.nome}"`);
   }
 
-  if (!found.matricula) issues.push("Matrícula não encontrada no documento");
-  else if (found.matricula !== folder.matricula) {
+  if (found.matricula && found.matricula !== folder.matricula) {
     issues.push(`Matrícula divergente: ${found.matricula}`);
   }
 

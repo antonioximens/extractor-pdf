@@ -27,13 +27,14 @@ export const SummaryItemRow = memo(function SummaryItemRow({ item }: Props) {
       <div className="min-w-0 space-y-1">
         <p className="text-sm font-semibold text-slate-800 truncate">
           {identified
-            ? item.nome || "Nome não encontrado"
+            ? item.nome || `CPF ${formatCpf(item.cpf)}`
             : "Páginas não identificadas"}
         </p>
-        {identified && (
+        {identified && (item.nome || item.matricula) && (
           <p className="text-xs text-slate-500">
-            CPF {formatCpf(item.cpf)}
-            {item.matricula && ` · Mat. ${item.matricula}`}
+            {item.nome && `CPF ${formatCpf(item.cpf)}`}
+            {item.nome && item.matricula && " · "}
+            {item.matricula && `Mat. ${item.matricula}`}
           </p>
         )}
         <ul className="text-xs text-slate-600 space-y-0.5">

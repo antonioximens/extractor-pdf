@@ -37,12 +37,11 @@ documentos_separados.zip
 └── relatorio.csv
 ```
 
-- **Pasta:** `{cpf}_{matricula}_{NOME}` — nome em maiúsculas, sem acentos e com `_` no lugar de espaços
+- **Pasta:** `{cpf}_{matricula}_{NOME}` — nome em maiúsculas, sem acentos e com `_` no lugar de espaços. Nome e matrícula são **opcionais**: se o documento não os tiver, a pasta usa só o que foi encontrado (`{cpf}_{NOME}`, `{cpf}_{matricula}` ou só `{cpf}`)
 - **Arquivo:** o tipo do documento detectado; se nenhum perfil reconhecer o PDF, usa o nome do arquivo enviado
 - **Dois documentos do mesmo tipo** para o mesmo colaborador recebem sufixo (`holerite_2.pdf`)
-- **Campos ausentes** usam `MATRICULA_NAO_ENCONTRADA` / `NOME_NAO_ENCONTRADO`
 - **Páginas antes do primeiro CPF** vão para `NAO_IDENTIFICADOS`
-- **`relatorio.csv`** (separado por `;`, abre direto no Excel) lista, para cada PDF gerado, as páginas de origem, os dados extraídos e observações (campo não encontrado, nome/matrícula divergente entre documentos)
+- **`relatorio.csv`** (separado por `;`, abre direto no Excel) lista, para cada PDF gerado, as páginas de origem, os dados extraídos e observações (página sem CPF, nome/matrícula divergente entre documentos). Nome ou matrícula ausente não é pendência
 
 ---
 
